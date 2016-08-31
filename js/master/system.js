@@ -31,19 +31,27 @@ function jor1kGUI(parameters)
     this.params.system.arch = this.params.system.arch || "or1k";
     this.params.system.cpu = this.params.system.cpu || "asm";
     this.params.system.ncores = this.params.system.ncores || 1;
+    this.params.syncURL = this.params.syncURL || "";
 
     this.params.fs = this.params.fs  || {};
-    this.params.fs.basefsURL = this.params.fs.basefsURL  || "basefs.json";
-    // this.params.fs.extendedfsURL = this.params.fs.extendedfsURL  || "";
+    this.params.fs.basefsURL = this.params.fs.basefsURL || "basefs.json";
     this.params.fs.earlyload = this.params.fs.earlyload  || [];
     this.params.fs.lazyloadimages = this.params.fs.lazyloadimages  || [];
 
+    // add path to every URL
+    this.params.system.kernelURL = this.params.path + this.params.system.kernelURL;
+    this.params.fs.basefsURL = this.params.path + this.params.fs.basefsURL;
+    if (this.params.fs.extendedfsURL) {
+        this.params.fs.extendedfsURL = this.params.path + this.params.fs.extendedfsURL;
+    }
+
     this.params.userid = this.params.userid || "";
-    this.params.path = this.params.path || "";
 
     // ----------------------
 
-    this.worker = new Worker(this.params.path + "../bin/jor1k-worker-min.js");
+    this.worker = (this.params.worker instanceof Worker) ?
+        this.params.worker : new Worker("jor1k-worker-min.js");
+
     message.SetWorker(this.worker);
 
     // ----
@@ -74,7 +82,7 @@ function jor1kGUI(parameters)
     this.activeTTY = "tty0";
     this.terminput = new TerminalInput(this.SendChars.bind(this));
 
-    this.fs = new Filesystem();
+    this.fs = new Filesystem(this.params.syncURL, this.params.userid);
 
     this.sound = new LoopSoundBuffer(22050);
     message.Register("sound",      this.sound.AddBuffer.bind(this.sound));
@@ -166,11 +174,15 @@ function jor1kGUI(parameters)
 
     message.Register("GetIPS", this.ShowIPS.bind(this));
     message.Register("execute", this.Execute.bind(this));
-
-    this.Reset();
-
-    window.setInterval(function(){message.Send("GetIPS", 0)}.bind(this), 1000);
+    message.Register("WorkerReady", this.OnWorkerReady.bind(this));
 }
+
+jor1kGUI.prototype.OnWorkerReady = function() {
+    this.Reset();
+    window.setInterval(function() {
+        message.Send("GetIPS", 0);
+    }, 1000);
+};
 
 // this command is send back and forth to be responsive
 jor1kGUI.prototype.Execute = function() {
@@ -205,11 +217,12 @@ jor1kGUI.prototype.Reset = function () {
     this.stop = false; // VM Stopped/Aborted
     this.userpaused = false;
     this.executepending = false; // if we rec an execute message while paused      
+
     message.Send("Init", this.params.system);
     message.Send("Reset");
-      
     message.Send("LoadAndStart", this.params.system.kernelURL);
     message.Send("LoadFilesystem", this.params.fs);
+
     if (this.terms.length > 0) {
         this.terms.forEach(function (term) {
             term.PauseBlink(false);
@@ -237,6 +250,7 @@ jor1kGUI.prototype.Pause = function(pause) {
 jor1kGUI.prototype.SendChars = function(chars) {
     if (this.lastMouseDownTarget == this.fbcanvas) return;
     message.Send(this.activeTTY, chars);
+    message.Send("htif.term0.Transfer", chars);
 }
 
 // Returns the terminal attached to tty

@@ -14,12 +14,12 @@ Restart with new binary image:
                         Terminal uses canvas
 </canvas>
 
-<script src="../bin/jor1k-master-min.js"></script>
+<script src="jor1k-master-min.js"></script>
 
 <script>
 
 var Jor1k = require("Jor1k");
-var MackeTerm = require("MackeTerm");
+var LinuxTerm = require("LinuxTerm");
 
 
 function Start(image)
@@ -36,7 +36,7 @@ function OnNewImage(files)
     reader.readAsArrayBuffer(files[0]);
 }
 
-jor1kgui = new Jor1k(
+jor1k = new Jor1k(
 	{
 	system: {
             memorysize: 32,
@@ -46,8 +46,8 @@ jor1kgui = new Jor1k(
          fs: {
             basefsURL: ""
          },
-         term: new MackeTerm("tty"),
-	 path: "../bin/"
+         term: new LinuxTerm("tty"),
+	 path: "../sys/or1k/"
 	});
 
 </script>

@@ -30,6 +30,12 @@ function ToHex(x) {
     return ("0x" + ("00000000" + val.toString(16)).substr(-8).toUpperCase());
 }
 
+function ToBin(x) {
+    var val = uint32(x);
+    var s = ("00000000000000000000000000000000" + val.toString(2)).substr(-32) + "b";
+    return s.replace(/./g, function (v, i) {return ((i&3)==3)?v + " ": v;});
+}
+
 function CopyBinary(to, from, size, buffersrc, bufferdest) {
     var i = 0;
     for (i = 0; i < size; i++) {
@@ -42,6 +48,34 @@ function LoadBinaryResource(url, OnSuccess, OnError) {
     // open might fail, when we try to open an unsecure address, when the main page is secure
     try {
         req.open('GET', url, true);
+    } catch(err) {
+        OnError(err);
+        return;
+    }
+    req.responseType = "arraybuffer";
+    req.onreadystatechange = function () {
+        if (req.readyState != 4) {
+            return;
+        }
+        if ((req.status != 200) && (req.status != 0)) {
+            OnError("Error: Could not load file " + url);
+            return;
+        }
+        var arrayBuffer = req.response;
+        if (arrayBuffer) {
+            OnSuccess(arrayBuffer);
+        } else {
+            OnError("Error: No data received from: " + url);
+        }
+    };
+    req.send(null);
+}
+
+function LoadBinaryResourceII(url, OnSuccess, NonBlocking, OnError) {
+    var req = new XMLHttpRequest();
+    // open might fail, when we try to open an unsecure address, when the main page is secure
+    try {
+        req.open('GET', url, NonBlocking);
     } catch(err) {
         OnError(err);
         return;
@@ -173,6 +207,8 @@ module.exports.Swap16 = Swap16;
 module.exports.int32 = int32;
 module.exports.uint32 = uint32;
 module.exports.ToHex = ToHex;
+module.exports.ToBin = ToBin;
 module.exports.LoadBinaryResource = LoadBinaryResource;
+module.exports.LoadBinaryResourceII = LoadBinaryResourceII;
 module.exports.LoadTextResource = LoadTextResource;
 

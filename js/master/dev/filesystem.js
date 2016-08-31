@@ -1,9 +1,12 @@
-var message = require('../messagehandler.js');
+var message = require('../messagehandler');
 var download = require('../../lib/download');
+var utils = require('../utils');
 
 "use strict";
 
-function Filesystem() {
+function Filesystem(syncURL, userid) {
+    this.syncURL = syncURL;
+    this.userid = userid;
 }
 
 Filesystem.prototype.TAR = function(path) {
@@ -17,7 +20,7 @@ Filesystem.prototype.Sync = function(path) {
 }
 
 Filesystem.prototype.OnSync = function(d) {
-    utils.UploadBinaryResource(this.params.syncURL, this.params.userid + ".tar", d,
+    utils.UploadBinaryResource(this.syncURL, this.userid + ".tar", d,
         function(response) {
             alert(
                 "Message from Server:" + response + "\n" +
@@ -25,7 +28,7 @@ Filesystem.prototype.OnSync = function(d) {
                 "In order to access the data at a later date,\n" +
                 "start the next session with the current url with the user id\n" +
                 "The folder size is currently limited to 1MB. Note that the feature is experimental.\n" +
-                "The content can be downloaded under http://jor1k.com/sync/tarballs/" + this.params.userid+".tar.bz2"
+                "The content can be downloaded under http://jor1k.com/sync/tarballs/" + this.userid+".tar.bz2"
             );
             }.bind(this),
         function(msg) {alert(msg);}
@@ -53,14 +56,41 @@ Filesystem.prototype.MergeFile = function(fileName, data) {
   message.Send("MergeFile", {name: fileName, data: stringToUint(data)});
 }
 
+Filesystem.prototype.MergeBinaryFile = function(fileName, data) {
+  message.Send("MergeFile", {name: fileName, data: data});
+}
+
+Filesystem.prototype.CreateDirectory = function(dirctoryName) {
+    message.Send("CreateDirectory", dirctoryName );
+}
+
 Filesystem.prototype.ReadFile = function(fileName, callback) {
   message.Register("ReadFile", callback);
   message.Send("ReadFile", { name: fileName });
 }
 
+//deletes contents of specified directory.
+Filesystem.prototype.DeleteDirContents = function(dirPath) {
+    message.Send("DeleteDirContents", dirPath);
+}
+
+//deletes file, recursively deletes dir
+Filesystem.prototype.DeleteNode = function(nodeName) {
+    message.Send("DeleteNode", nodeName);
+}
+
+Filesystem.prototype.Rename = function(oldPath, newPath) {
+    message.Send("Rename", {oldPath:oldPath, newPath: newPath});
+}
+
 Filesystem.prototype.WatchFile = function(fileName, callback) {
   message.Register("WatchFileEvent", callback);
   message.Send("WatchFile", { name: fileName });
+}
+
+Filesystem.prototype.WatchDirectory = function(directoryPath, callback) {
+  message.Register("WatchDirectoryEvent", callback);
+  message.Send("WatchDirectory", { name: directoryPath });
 }
 
 module.exports = Filesystem;
