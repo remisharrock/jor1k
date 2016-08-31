@@ -4,38 +4,38 @@
 
 "use strict";
 // common
-var message = require('./messagehandler.js'); // global variable
-var utils = require('./utils.js');
-var RAM = require('./ram.js');
-var bzip2 = require('./bzip2.js');
-var elf = require('./elf.js');
-var Timer = require('./timer.js');
+var message = require('./messagehandler'); // global variable
+var utils = require('./utils');
+var RAM = require('./ram');
+var bzip2 = require('./bzip2');
+var elf = require('./elf');
+var Timer = require('./timer');
+var HTIF = require('./riscv/htif');
 
 // CPU
 var OR1KCPU = require('./or1k');
 var RISCVCPU = require('./riscv');
 
 // Devices
-var UARTDev = require('./dev/uart.js');
-var IRQDev = require('./dev/irq.js');
-var TimerDev = require('./dev/timer.js');
-var FBDev = require('./dev/framebuffer.js');
-var EthDev = require('./dev/ethmac.js');
-var ATADev = require('./dev/ata.js');
-var RTCDev = require('./dev/rtc.js');
-var TouchscreenDev = require('./dev/touchscreen.js');
-var KeyboardDev = require('./dev/keyboard.js');
-var SoundDev = require('./dev/sound.js');
-var VirtIODev = require('./dev/virtio.js');
-var Virtio9p = require('./dev/virtio/9p.js');
-var VirtioDummy = require('./dev/virtio/dummy.js');
-var VirtioInput = require('./dev/virtio/input.js');
-var VirtioNET = require('./dev/virtio/net.js');
-var VirtioBlock = require('./dev/virtio/block.js');
-var VirtioGPU = require('./dev/virtio/gpu.js');
-var VirtioConsole = require('./dev/virtio/console.js');
-var FS = require('./filesystem/filesystem.js');
-
+var UARTDev = require('./dev/uart');
+var IRQDev = require('./dev/irq');
+var TimerDev = require('./dev/timer');
+var FBDev = require('./dev/framebuffer');
+var EthDev = require('./dev/ethmac');
+var ATADev = require('./dev/ata');
+var RTCDev = require('./dev/rtc');
+var TouchscreenDev = require('./dev/touchscreen');
+var KeyboardDev = require('./dev/keyboard');
+var SoundDev = require('./dev/sound');
+var VirtIODev = require('./dev/virtio');
+var Virtio9p = require('./dev/virtio/9p');
+var VirtioDummy = require('./dev/virtio/dummy');
+var VirtioInput = require('./dev/virtio/input');
+var VirtioNET = require('./dev/virtio/net');
+var VirtioBlock = require('./dev/virtio/block');
+var VirtioGPU = require('./dev/virtio/gpu');
+var VirtioConsole = require('./dev/virtio/console');
+var FS = require('./filesystem/filesystem');
 
 /* 
     Heap Layout
@@ -70,7 +70,7 @@ var SYSTEM_HALT = 0x3; // Idle
 function System() {
     // the Init function is called by the master thread.
     message.Register("LoadAndStart", this.LoadImageAndStart.bind(this) );
-    message.Register("execute", this.MainLoop.bind(this)	);
+    message.Register("execute", this.MainLoop.bind(this));
     message.Register("Init", this.Init.bind(this) );
     message.Register("Reset", this.Reset.bind(this) );
     message.Register("ChangeCore", this.ChangeCPU.bind(this) );
@@ -79,9 +79,7 @@ function System() {
     message.Register("GetIPS", function(data) {
         message.Send("GetIPS", this.ips);
         this.ips=0;
-    }.bind(this)
-
-    );
+    }.bind(this));
 }
 
 System.prototype.CreateCPU = function(cpuname, arch) {
@@ -90,7 +88,7 @@ System.prototype.CreateCPU = function(cpuname, arch) {
             this.cpu = new OR1KCPU(cpuname, this.ram, this.heap, this.ncores);
         } else
         if (arch == "riscv") {
-            this.cpu = new RISCVCPU(cpuname, this.ram, this.heap, this.ncores);
+            this.cpu = new RISCVCPU(cpuname, this.ram, this.htif, this.heap, this.ncores);
         } else
             throw "Architecture " + arch + " not supported";
     } catch (e) {
@@ -125,6 +123,11 @@ System.prototype.Init = function(system) {
     this.heap = new ArrayBuffer(this.memorysize*0x100000); 
     this.memorysize--; // - the lower 1 MB are used for the cpu cores
     this.ram = new RAM(this.heap, ramoffset);
+
+    if (system.arch == "riscv") {
+        this.htif = new HTIF(this.ram, this);
+    }
+
     this.CreateCPU(system.cpu, system.arch);
 
     this.devices = [];
@@ -245,6 +248,7 @@ System.prototype.ClearSoftInterrupt = function (line, cpuid) {
 };
 
 System.prototype.PrintState = function() {
+    // Flush the buffer of the terminal
     this.uartdev0 && this.uartdev0.Step();
     this.uartdev1 && this.uartdev1.Step();
     message.Debug(this.cpu.toString());
@@ -261,10 +265,14 @@ System.prototype.SendStringToTerminal = function(str)
 
 System.prototype.LoadImageAndStart = function(url) {
     this.SendStringToTerminal("\r================================================================================");
-    
-    if (typeof url  == 'string') {
+
+    if (typeof url == 'string') {
         this.SendStringToTerminal("\r\nLoading kernel and hard and basic file system from web server. Please wait ...\r\n");
-        utils.LoadBinaryResource(url, this.OnKernelLoaded.bind(this), function(error){throw error;});
+        utils.LoadBinaryResource(
+            url, 
+            this.OnKernelLoaded.bind(this), 
+            function(error){throw error;}
+        );
     } else {
         this.OnKernelLoaded(url);
     }

@@ -5,7 +5,8 @@
 "use strict";
 var message = require('../messagehandler');
 var utils = require('../utils');
-var syscalls = require('./syscalls.js');
+var bzip2 = require('../bzip2');
+var syscalls = require('./syscalls');
 
 // -------------------------------------------------
 
@@ -127,12 +128,17 @@ function HTIFDisk(ram, SendFunc) {
     this.buffer = new Uint8Array(1024*1024);
     this.identify = "disk size="+this.buffer.length;
     
-    utils.LoadBinaryResourceII("riscv/ext2fsimage", 
+    utils.LoadBinaryResourceII("../sys/riscv/ext2fsimage.bz2", 
     function(buffer) {
-        this.buffer = new Uint8Array(buffer);
+        this.buffer = new Uint8Array(20*1024*1024);
+
+        var length = 0;
+        var buffer8 = new Uint8Array(buffer);
+	bzip2.simple(buffer8, function(x){this.buffer[length++] = x;}.bind(this));
+
         this.identify = "disk size="+this.buffer.length;   
     }.bind(this)
-    , false, function(error){message.Abort();});
+    , false, function(error){throw error;});
 
     this.Read = function(value) {
         var addr   = this.ram.Read32(value + 0);
@@ -164,8 +170,9 @@ function HTIFDisk(ram, SendFunc) {
 
 
 // constructor
-function HTIF(ram) {
+function HTIF(ram, irqdev) {
     this.ram = ram;
+    this.irqdev = irqdev;
     
     this.device = [];
 
@@ -192,7 +199,9 @@ HTIF.prototype.Send = function(devid, cmd, data) {
 
     if (this.fromhostqueue.length == 1)
         this.reg_devcmdfromhost =
-        (this.fromhostqueue[0].devid << 16) | this.fromhostqueue[0].cmd;
+            (this.fromhostqueue[0].devid << 16) | this.fromhostqueue[0].cmd;
+
+    this.irqdev.RaiseInterrupt(0xF);
 }
 
 // -------------------------------------------------
@@ -248,9 +257,11 @@ HTIF.prototype.WriteFromHost = function(value) {
     {
         this.fromhostqueue.shift();
 
-        if (this.fromhostqueue.length > 0)
+        if (this.fromhostqueue.length > 0) {
             this.reg_devcmdfromhost =
-            (this.fromhostqueue[0].devid << 16) | this.fromhostqueue[0].cmd;
+                (this.fromhostqueue[0].devid << 16) | this.fromhostqueue[0].cmd;
+            this.irqdev.RaiseInterrupt(0xF);
+        }
     }
 }
 
