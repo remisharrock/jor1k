@@ -3,7 +3,30 @@
     <head>
         <meta charset="utf-8">
         <title>JOR1K Compiler Demo</title>
-        <link rel="stylesheet" href="css/default.css">
+
+<style>
+.button {
+    background-color: #4CAF50;
+    border: none;
+    color: white;
+    padding: 10px 22px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    margin: 4px 2px;
+    cursor: pointer;
+}
+.terminal {
+    border: 1px solid black;
+    font-family: courier,fixed,swiss,monospace,sans-serif;
+    font-size: 14px;
+    color: #bbbbbb;
+    background: #000000;   
+    border-collapse: collapse;
+    line-height: normal;
+}
+</style>
     </head>
     <body onload="Start()">
     
@@ -18,23 +41,13 @@
                     </td></tr>
                     <tr><td>
                     <span style="float: left">
-                    <form>VM Control
-                        <select id="coreselect" onchange='jor1kgui.ChangeCore(this.options[this.selectedIndex].value)'>
-                            <option value="asm">asm.js Core</option>
-                            <option value="safe">Safe Core (Slow)</option>
-                        </select>
-
-                    <button type='button' onclick='term_output="";waitingForActivate=true;jor1kgui.Reset()'>Reset</button>
-                    <button type='button' onclick='jor1kgui.Pause(true)'>Pause</button>
-                    <button type='button' onclick='jor1kgui.Pause(false)'>Run</button>
-                    </form>                    
+                 
                     
                     <label>
                         <img src="images/upload.png" width="20px" height="20px" title="Upload to home folder" />
                         <input type="file" id="files" style="visibility:hidden;width:0; height:0;" name="files[]" onchange='OnUploadFiles(this.files)' multiple />
                     </label>
                     <img src="images/tar.png" width="20px" height="20px"  onclick='jor1kgui.fs.TAR("home/user")' title="Download of home folder" />
-                    <img src="images/sync.png" width="20px" height="20px"  onclick='jor1kgui.fs.Sync("home/user")' title="Sync with server" />
                     <textarea style="display:none;" id="clipboard">clipb</textarea>
                     </span>
                     <span id="stats" style="float: right"></span>
@@ -42,29 +55,22 @@
                     </table>
 
                 </td>
+                </tr>
+                <tr>
                 <td style="vertical-align: top">
-<div id="code" style="width: 640px; height: 388px; margin-top: 2px">
-// jor1k Example: Client-side C Compiler demo 
-// by Neelabh Gupta and Lawrence Angrave from UIUC
+<div id="code" style="width: 680px; height: 388px; margin-top: 2px">
+// Code en langage C de démonstration: MOOC programmez en C 
 
-// Compile this program to find the syntax error...
 #include &lt;stdio.h&gt;
 int main() {
-  
-    printf("Hello World!\n");
+    printf("Bienvenue dans le MOOC Programmez en C (avec Linux)!\n");
     return 0;
 }
 </div>
 
-<select id="lang" onchange='editor.setValue("");editor.getSession().setMode("ace/mode/"+this.options[this.selectedIndex].value)'>
-  <option value="c_cpp">gcc</option>
-  <option value="lua">lua</option>
-  <option value="perl">perl</option>
-  <option value="php">php</option>
-  <option value="python">python</option>
-  <option value="ruby">ruby</option>
-  <option value="sh">sh</option>
-</select> options:<input type="text" maxlen=32 id="gccoptions" value="-Wall" /><button type='button' onclick= "RunCode(GetCodeText(),document.getElementById('gccoptions').value);return false;" >Compile and run</button>
+<input type="hidden" id="lang" value="c_cpp">
+<input type="hidden" maxlen=32 id="gccoptions" value="-Wall" />
+<button type='button' class="button" onclick= "RunCode(GetCodeText(),document.getElementById('gccoptions').value);return false;" >Compiler et exécuter</button>
 <span style="margin: 0 5px 0 5px" id="gcc-compile-status"></span>
 <span style="margin: 0 5px 0 5px">Errors: <span id="gcc-error-count">0</span> Warnings: <span id="gcc-warning-count">0</span></span>
 Theme<select onchange='editor.setTheme("ace/theme/"+this.options[this.selectedIndex].value)'>
